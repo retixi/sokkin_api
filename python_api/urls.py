@@ -18,10 +18,10 @@ from django.contrib import admin
 from api.views import verify,pin,categories,confirms,suggestions,items,sell,myitem,notices,profile
 
 urlpatterns = [
-    url(r'^auth/verify', verify),
-    url(r'^auth/pin', pin),
-    url(r'^categories$', categories),
-    url(r'^categories/.*/confirms', confirms),
+    url(r'^api/auth/verify', verify),
+    url(r'^api/auth/pin', pin),
+    url(r'^api/categories$', categories),
+    url(r'^api/categories/.*/confirms', confirms),
     url(r'^api/suggestions',suggestions),
     url(r'^api/.*/items$',items),
     url(r'^api/items/.*/sell',sell),

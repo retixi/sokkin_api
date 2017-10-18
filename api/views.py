@@ -93,14 +93,15 @@ def confirms(request):
 def suggestions(request):
     if request.method == "GET":
         if auth_func(request):
-            query_get = request.GET
-            find_result = category_col.find({"id":int(query_get["category"]),
-                                             "name":re.compile(query_get["keyword"])
-                                             })
+            cate_id = int(request.GET["category"])
+            title_keyword = request.GET["keyword"]
+            cate_name = category_col.find_one({"id":cate_id})['name']
+            find_result = item_col.find({"category": cate_name,
+                                         "title":re.compile(title_keyword,re.IGNORECASE)
+                                         })
             find_list = []
             for each in find_result:
-                each.pop('_id')
-                find_list.append(each)
+                find_list.append({"name":each['title']})
             if find_list == []:
                 res = HttpResponse("没有在该品类查询到相关物品")
             else:

@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from django.http import HttpResponse
-import pymongo,json,jwt,random
+import pymongo,json,jwt,random,re
 client = pymongo.MongoClient("www.zhihuazhang.net",27017)
 db = client['retixi']
 db.authenticate('retixi','password')
 pin_col = db['pin']
 category_col = db['category']
+item_col = db['item']
 
 def auth_func(request):
     try:
@@ -70,6 +71,154 @@ def categories(request):
         else:
             res = HttpResponse("用户未认证")
             return res
+
+def confirms(request):
+    if request.method =="GET":
+        if auth_func(request):
+            cid = int(request.path.split('/')[-2])
+            cate = category_col.find_one({"id":cid})
+            if cate != None:
+                res_cate = {
+                    "content":cate['content'],
+                    "category":cate['name']
+                }
+                res_body = json.dumps(res_cate,ensure_ascii=False)
+                res = HttpResponse(res_body)
+            else:
+                res = HttpResponse("id不存在")
+        else:
+            res = HttpResponse('用户没有权限')
+        return res
+
+def suggestions(request):
+    if request.method == "GET":
+        if auth_func(request):
+            query_get = request.GET
+            find_result = category_col.find({"id":int(query_get["category"]),
+                                             "name":re.compile(query_get["keyword"])
+                                             })
+            find_list = []
+            for each in find_result:
+                each.pop('_id')
+                find_list.append(each)
+            if find_list == []:
+                res = HttpResponse("没有在该品类查询到相关物品")
+            else:
+                res_body = json.dumps(find_list,ensure_ascii=False)
+                res = HttpResponse(res_body)
+        else:
+            res = HttpResponse('用户没有权限')
+        return res
+
+def items(request):
+    if auth_func(request):
+        id_find = int(request.path.split('/')[-2])
+        item_find = item_col.find_one({"id": id_find})
+        if item_find == None:
+            res = HttpResponse('商品id不存在')
+        else:
+            if request.method == "GET":
+                    item_find.pop('_id')
+                    res_body = json.dumps(item_find, ensure_ascii=False)
+                    res = HttpResponse(res_body)
+            elif request.method == "PUT":
+                item_update = json.loads(request.readline())
+                item_col.find_one_and_update({"id":id_find},{"$set":item_update})
+                body = item_col.find_one({"id":id_find})
+                body.pop('_id')
+                res_body = json.dumps(body,ensure_ascii=False)
+                res = HttpResponse(res_body)
+    else:
+        res = HttpResponse("用户未认证")
+    return res
+
+def sell(request):
+    if request.method == "PUT":
+        id_find = int(request.path.split('/')[-2])
+        item_find = item_col.find_one({"id": id_find})
+        if item_find == None:
+            res = HttpResponse('商品id不存在')
+        else:
+            item_col.find_one_and_update({"id": id_find}, {"$set": {"soldout":1}})
+            res = HttpResponse('商品售出')
+            res.status_code = 204
+        return res
+
+def myitem(request):
+    if request.method == "GET":
+        if(auth_func(request)):
+            user = auth_func(request)
+            try:
+                collection = user['collection']
+            except:
+                collection = []
+            assessed = []
+            assessing = []
+            try:
+                for each in user['assessedid']:
+                    item_assessed = item_col.find_one({"id":each})
+                    item_assessed.pop('_id')
+                    assessed.append(item_assessed)
+            except:
+                pass
+            try:
+                for each in user['assessingid']:
+                    item_assessing = item_col.find_one({"id": each})
+                    item_assessing.pop('_id')
+                    assessing.append(item_assessing)
+            except:
+                pass
+            body = {
+                "assessed":assessed,
+                "assessing":assessing,
+                "collection":collection
+            }
+            res_body = json.dumps(body,ensure_ascii=False)
+            res = HttpResponse(res_body)
+        else:
+            res = HttpResponse('用户无权限')
+        return res
+
+def notices(request):
+    if request.method =="GET":
+        user = auth_func(request)
+        if user:
+            try:
+                mynotices = user['notices']
+            except KeyError:
+                mynotices = []
+            res_body = json.dumps(mynotices,ensure_ascii=False)
+            res = HttpResponse(res_body)
+        else:
+            res = HttpResponse('无权限')
+        return res
+
+def profile(request):
+    user = auth_func(request)
+    if user:
+        if request.method == "GET":
+            try:
+                myprofile = user['profile']
+            except KeyError:
+                myprofile = []
+            res_body = json.dumps(myprofile,ensure_ascii=False)
+            res = HttpResponse(res_body)
+        elif request.method == "PUT":
+            accesstoken = request.META.get('HTTP_AUTHORIZATION')
+            phone_req = jwt.decode(accesstoken, 'pin')['phone']
+            profile_update = json.loads(request.readline())
+            try:
+                user['profile'].update(profile_update)
+            except:
+                user['profile'] = profile_update
+            pin_col.find_one_and_update({"phone":phone_req}, {"$set": user})
+            body = user['profile']
+            res_body = json.dumps(body, ensure_ascii=False)
+            res = HttpResponse(res_body)
+    else:
+        res = HttpResponse('无权限')
+    return res
+
 
 # Create your views here.
 '''

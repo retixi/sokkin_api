@@ -15,11 +15,17 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from api.views import verify,pin,categories
+from api.views import verify,pin,categories,confirms,suggestions,items,sell,myitem,notices,profile
 
 urlpatterns = [
     url(r'^auth/verify', verify),
     url(r'^auth/pin', pin),
-    url(r'^categories', categories),
-
+    url(r'^categories$', categories),
+    url(r'^categories/.*/confirms', confirms),
+    url(r'^api/suggestions',suggestions),
+    url(r'^api/.*/items$',items),
+    url(r'^api/items/.*/sell',sell),
+    url(r'^api/me/item',myitem),
+    url(r'^api/notices',notices),
+    url(r'^api/users/me',profile)
 ]
